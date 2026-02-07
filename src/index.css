@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Force reset if Tailwind preflight fails */
+button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+body {
+  background-color: #FFFCF9;
+  /* piyo-cream */
+  color: #4A4A4A;
+  /* piyo-text */
+  font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+/* Custom Utilities */
+.text-piyo-pink {
+  color: #FF7C90;
+}
+
+.bg-piyo-pink {
+  background-color: #FF7C90;
+}
+
+.bg-piyo-pinkLight {
+  background-color: #FFF0F3;
+}
+
+.border-piyo-pink {
+  border-color: #FF7C90;
+}
+
+.shadow-cute {
+  box-shadow: 0 4px 14px rgba(255, 124, 144, 0.25);
+}
