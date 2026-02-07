@@ -20,16 +20,16 @@ export const Sheet: React.FC<SheetProps> = ({ isOpen, onClose, children, title }
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 z-50 bg-[#4A4A4A]/20 backdrop-blur-sm"
+                        className="fixed inset-0 z-[60] bg-theme-text/20 backdrop-blur-sm"
                     />
 
-                    {/* Sheet */}
+                    {/* Sheet - Heavy Rounded Top */}
                     <motion.div
                         initial={{ y: '100%' }}
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-2xl overflow-hidden rounded-t-[32px] bg-white px-6 pb-10 pt-6 shadow-2xl"
+                        className="fixed bottom-0 left-0 right-0 z-[70] mx-auto max-w-2xl overflow-hidden rounded-t-[32px] bg-white px-6 pb-10 pt-6 shadow-modal"
                         style={{ maxHeight: '92vh' }}
                     >
                         {/* Drag Handle */}

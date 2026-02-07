@@ -60,7 +60,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate }) 
 
             {/* Detail Sheet */}
             <Sheet isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} title="本の詳細">
-                <div className="flex flex-col gap-6 pb-6">
+                <div className="flex flex-col gap-6 pb-24">
                     <div className="flex gap-4 bg-piyo-pinkLight/30 p-4 rounded-3xl">
                         <div className="w-24 shrink-0 rounded-xl overflow-hidden shadow-sm bg-white">
                             {book.cover_url ? (
