@@ -31,11 +31,15 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
 
             if (openBdData && openBdData[0]) {
                 const bookData = openBdData[0].summary;
-                setTitle(bookData.title);
+                const bookTitle = bookData.title;
+                setTitle(bookTitle);
                 setCoverUrl(bookData.cover || '');
                 // OpenBD doesn't provide tags/categories in a simple way, but that's fine
                 setTags('');
                 setLoading(false);
+
+                // AI自動タグ生成
+                generateTags(bookTitle);
                 return;
             }
 
@@ -45,10 +49,15 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
 
             if (googleData.items && googleData.items.length > 0) {
                 const info = googleData.items[0].volumeInfo;
-                setTitle(info.title);
+                const bookTitle = info.title;
+                setTitle(bookTitle);
                 setCoverUrl(info.imageLinks?.thumbnail || '');
+
+                // カテゴリがあればそれを使用、なければAI生成
                 if (info.categories) {
                     setTags(info.categories.join(', '));
+                } else {
+                    generateTags(bookTitle);
                 }
             } else {
                 // 見つからなかった場合のみアラート表示
@@ -60,6 +69,43 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
             alert('ネットワークエラーが発生しました');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const generateTags = async (bookTitle: string) => {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+        // APIキーが設定されていない場合はスキップ
+        if (!apiKey) {
+            console.log('Gemini API key not set, skipping tag generation');
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `以下の本のタイトルから、適切なジャンルタグを3～5個生成してください。カンマ区切りで出力してください。\n\nタイトル: ${bookTitle}\n\n例: ファンタジー, 冒険, 小説`
+                            }]
+                        }]
+                    })
+                }
+            );
+
+            const data = await response.json();
+            const generatedTags = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+            if (generatedTags) {
+                setTags(generatedTags);
+            }
+        } catch (error) {
+            console.error('Tag generation error:', error);
+            // エラーは静かに無視（タグなしで続行）
         }
     };
 
@@ -242,31 +288,42 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
                     {/* Cover Image Upload */}
                     <div className="space-y-2">
                         <label className="block text-sm font-bold text-[#4A4A4A] ml-2">表紙画像</label>
-                        <div className="flex gap-2">
-                            <label className="flex-shrink-0">
+                        <div className="grid grid-cols-2 gap-2">
+                            {/* Camera Capture Button */}
+                            <label className="flex-1">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleImageSelect}
+                                    className="hidden"
+                                />
+                                <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-[#FF7C90] text-white cursor-pointer hover:bg-[#FF6B80] transition-colors font-bold h-full">
+                                    <Upload size={20} />
+                                    📷 カメラで撮影
+                                </div>
+                            </label>
+
+                            {/* File Selection Button */}
+                            <label className="flex-1">
                                 <input
                                     type="file"
                                     accept="image/*"
                                     onChange={handleImageSelect}
                                     className="hidden"
                                 />
-                                <div className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#FF7C90] text-white cursor-pointer hover:bg-[#FF6B80] transition-colors font-bold">
-                                    <Upload size={20} />
-                                    {uploadingImage ? 'アップロード中...' : '画像を選択'}
+                                <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-[#FFD1D9] text-[#FF7C90] cursor-pointer hover:bg-[#FFC1D4] transition-colors font-bold h-full">
+                                    📁 ファイルから選択
                                 </div>
                             </label>
-                            <input
-                                type="url"
-                                value={coverUrl}
-                                onChange={(e) => setCoverUrl(e.target.value)}
-                                placeholder="または画像URL"
-                                className="flex-1 rounded-full bg-[#FFFCF9] border-2 border-[#FFD1D9] px-6 py-3 outline-none focus:border-[#FF7C90] text-[#4A4A4A] placeholder-[#FFD1D9]"
-                            />
                         </div>
+                        {uploadingImage && (
+                            <p className="text-xs text-[#FF7C90] text-center animate-pulse">アップロード中...</p>
+                        )}
                         {coverUrl && (
                             <div className="flex items-center gap-2 p-2 bg-[#FFF0F3] rounded-xl">
                                 <img src={coverUrl} alt="プレビュー" className="w-12 h-16 object-cover rounded" />
-                                <span className="text-xs text-[#4A4A4A] truncate flex-1">{coverUrl}</span>
+                                <span className="text-xs text-[#4A4A4A] truncate flex-1">画像が設定されました ✓</span>
                             </div>
                         )}
                     </div>
