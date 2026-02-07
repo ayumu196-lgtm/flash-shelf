@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, ScanLine } from 'lucide-react';
+import { Search, ScanLine, Upload } from 'lucide-react';
 import Quagga from 'quagga'; // @ts-ignore
 import { Sheet } from './ui/Sheet';
 import { Button } from './ui/Button';
 import type { NewBook } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface AddBookModalProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
     const [scannerActive, setScannerActive] = useState(false);
     const [coverUrl, setCoverUrl] = useState('');
     const [tags, setTags] = useState('');
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     const fetchBookInfo = async (isbn: string) => {
         setLoading(true);
@@ -33,6 +35,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
                 setCoverUrl(bookData.cover || '');
                 // OpenBD doesn't provide tags/categories in a simple way, but that's fine
                 setTags('');
+                setLoading(false);
                 return;
             }
 
@@ -48,11 +51,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
                     setTags(info.categories.join(', '));
                 }
             } else {
-                alert('本が見つかりませんでした');
+                // 見つからなかった場合のみアラート表示
+                alert('この本は見つかりませんでした。\n手動で入力してください。');
             }
         } catch (e) {
             console.error(e);
-            alert('検索に失敗しました');
+            // ネットワークエラーのみアラート
+            alert('ネットワークエラーが発生しました');
         } finally {
             setLoading(false);
         }
@@ -85,11 +90,16 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
             Quagga.onDetected((data: any) => {
                 if (data.codeResult.code) {
                     const code = data.codeResult.code;
-                    setIsbnInput(code);
-                    Quagga.stop();
-                    setScannerActive(false);
-                    setMode('manual');
-                    fetchBookInfo(code);
+
+                    // ISBN-13のみ受け入れ (978 or 979で始まる13桁)
+                    if (code.length === 13 && (code.startsWith('978') || code.startsWith('979'))) {
+                        setIsbnInput(code);
+                        Quagga.stop();
+                        setScannerActive(false);
+                        setMode('manual');
+                        fetchBookInfo(code);
+                    }
+                    // 無効なバーコード（価格コードなど）は静かに無視してスキャン継続
                 }
             });
         }, 100);
@@ -98,6 +108,39 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
     const stopScanner = () => {
         Quagga.stop();
         setScannerActive(false);
+    };
+
+    const uploadCoverImage = async (file: File) => {
+        setUploadingImage(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `covers/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('book-covers')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage
+                .from('book-covers')
+                .getPublicUrl(filePath);
+
+            setCoverUrl(data.publicUrl);
+        } catch (error) {
+            console.error('Image upload error:', error);
+            alert('画像のアップロードに失敗しました');
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            uploadCoverImage(file);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -196,13 +239,37 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
                         className="w-full rounded-full bg-[#FFFCF9] border-2 border-[#FFD1D9] px-6 py-3 outline-none focus:border-[#FF7C90] text-[#4A4A4A] placeholder-[#FFD1D9]"
                     />
 
-                    <input
-                        type="url"
-                        value={coverUrl}
-                        onChange={(e) => setCoverUrl(e.target.value)}
-                        placeholder="表紙画像URL"
-                        className="w-full rounded-full bg-[#FFFCF9] border-2 border-[#FFD1D9] px-6 py-3 outline-none focus:border-[#FF7C90] text-[#4A4A4A] placeholder-[#FFD1D9]"
-                    />
+                    {/* Cover Image Upload */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-bold text-[#4A4A4A] ml-2">表紙画像</label>
+                        <div className="flex gap-2">
+                            <label className="flex-shrink-0">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageSelect}
+                                    className="hidden"
+                                />
+                                <div className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#FF7C90] text-white cursor-pointer hover:bg-[#FF6B80] transition-colors font-bold">
+                                    <Upload size={20} />
+                                    {uploadingImage ? 'アップロード中...' : '画像を選択'}
+                                </div>
+                            </label>
+                            <input
+                                type="url"
+                                value={coverUrl}
+                                onChange={(e) => setCoverUrl(e.target.value)}
+                                placeholder="または画像URL"
+                                className="flex-1 rounded-full bg-[#FFFCF9] border-2 border-[#FFD1D9] px-6 py-3 outline-none focus:border-[#FF7C90] text-[#4A4A4A] placeholder-[#FFD1D9]"
+                            />
+                        </div>
+                        {coverUrl && (
+                            <div className="flex items-center gap-2 p-2 bg-[#FFF0F3] rounded-xl">
+                                <img src={coverUrl} alt="プレビュー" className="w-12 h-16 object-cover rounded" />
+                                <span className="text-xs text-[#4A4A4A] truncate flex-1">{coverUrl}</span>
+                            </div>
+                        )}
+                    </div>
 
                     <input
                         value={tags}
