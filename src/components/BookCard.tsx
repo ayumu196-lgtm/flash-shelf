@@ -97,15 +97,15 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate }) 
 
                     <Button
                         variant="ghost"
-                        className="text-piyo-gray hover:text-system-red hover:bg-red-50"
+                        className="text-piyo-gray hover:text-white hover:bg-red-400 mt-4 border border-transparent hover:border-red-400 transition-all font-bold"
                         onClick={() => {
-                            if (window.confirm('本当に削除してもいいですか？')) {
+                            if (window.confirm('本当に削除してもいいですか？\n（この操作は取り消せません）')) {
                                 onDelete(book.id);
                                 setIsDetailOpen(false);
                             }
                         }}
                     >
-                        この本を削除する
+                        🗑️ この本を削除する
                     </Button>
                 </div>
             </Sheet>

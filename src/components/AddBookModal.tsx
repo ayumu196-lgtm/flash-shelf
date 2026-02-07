@@ -23,10 +23,25 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onA
     const fetchBookInfo = async (isbn: string) => {
         setLoading(true);
         try {
-            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-            const data = await response.json();
-            if (data.items && data.items.length > 0) {
-                const info = data.items[0].volumeInfo;
+            // 1. Try OpenBD first (Best for Japanese books)
+            const openBdResponse = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
+            const openBdData = await openBdResponse.json();
+
+            if (openBdData && openBdData[0]) {
+                const bookData = openBdData[0].summary;
+                setTitle(bookData.title);
+                setCoverUrl(bookData.cover || '');
+                // OpenBD doesn't provide tags/categories in a simple way, but that's fine
+                setTags('');
+                return;
+            }
+
+            // 2. Fallback to Google Books API
+            const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+            const googleData = await googleResponse.json();
+
+            if (googleData.items && googleData.items.length > 0) {
+                const info = googleData.items[0].volumeInfo;
                 setTitle(info.title);
                 setCoverUrl(info.imageLinks?.thumbnail || '');
                 if (info.categories) {
